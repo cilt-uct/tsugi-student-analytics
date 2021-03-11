@@ -1,0 +1,10 @@
+*.swp
+tool-config.php
+config.cfg
+cache/*.php
+
+templates/footer_old.html
+templates/footer_sankey_indiv_students.html
+templates/footer_sankey.html
+templates/footer-stacked-barchart.html
+templates/footer-static.html

@@ -1,0 +1,273 @@
+{% foreach($scripts as $script): %}
+    <script src="{{$script}}" type="text/javascript"></script>
+{% endforeach; %}
+
+<!-- Resources -->
+<script src="static/amcharts4/core.js"></script>
+<script src="static/amcharts4/charts.js"></script>
+<script src="static/amcharts4/themes/animated.js"></script>
+    
+<!-- Chart code -->
+<script type="text/javascript">
+    jQuery.fn.exists = function(){ return this.length > 0; }
+
+    const WEEK_SIZE = 60,
+        COLOURS = {"GREEN" : "#8bc34a", "ORANGE": "#ff9800", "RED": "#F44336"},
+        chartdiv = "chartdiv";
+
+    let getColor = c => COLOURS[c],
+        chart_div = $(`#${chartdiv}`);
+        site_info = null,
+        week_data = null,
+        chart = null;
+
+    function getCount(x) {
+        if (x.length > 0) {
+            return parseInt(x[0].c, 10);
+        }
+        return 0;
+    }
+
+    function drawGraph(site_title, no_students, start_week, end_week, term) {
+
+        const no_weeks = end_week - start_week;
+
+        chart_div.css("height", `${(no_weeks * WEEK_SIZE < 500 ? 500 : no_weeks * WEEK_SIZE)}px`);
+
+        // Create chart instance
+        chart = am4core.create(chartdiv, am4charts.XYChart);
+
+        // Title
+        var title = chart.titles.push(new am4core.Label());
+        title.text = `Student Analytics:  ${site_title} [font-size: 16px](${no_students} students)[/]`;
+        title.fontSize = 25;
+        title.marginBottom = 15;
+        title.align = "left";
+
+        var label = chart.chartContainer.createChild(am4core.Label);
+        label.text = `Last Updated: ${moment(new Date()).calendar()}`;
+        label.align = "right";
+        label.fill = am4core.color("#888888");
+        label.fontSize = '14px';
+
+        // chart.dataSource.url = "{{ $fetchWeekDataUrl }}";
+        // chart.dataSource.parser = new am4core.JSONParser();
+        // chart.dataSource.parser.options.emptyAs = 0;
+
+        var dataSource = chart.dataSource;
+        dataSource.parser = new am4core.JSONParser();
+        dataSource.parser.options.emptyAs = 0;
+        dataSource.url = "{{ $fetchWeekDataUrl }}";
+        dataSource.requestOptions.requestHeaders = [
+            { key: "start_week", value: start_week },
+            { key: "end_week", value: end_week },
+            { key: "term", value: term }
+        ];
+
+        chart.dataSource.events.on("parseended", function(ev) {
+            // parsed data is assigned to data source's `data` property
+            let raw = ev.target.data,
+                data = [];
+
+            week_data = raw;
+            for (let s = raw.course_start_week, c = 1; s <= raw.course_end_week; s++, c++) { 
+                let final = {
+                    "category": "Week " + (raw.real_weeks ? s : c),
+                    "s": week_data.result.filter(x => x.WEEK == s)[0].start_date,
+                    "e": week_data.result.filter(x => x.WEEK == s)[0].end_date,
+                    "no": 6,
+                    "g-per": getCount(week_data.result.filter(x => x.WEEK == s & x.val == "GREEN")) / raw.no_students * 100,
+                    "g-val": getCount(week_data.result.filter(x => x.WEEK == s & x.val == "GREEN")),
+                    "o-per": getCount(week_data.result.filter(x => x.WEEK == s & x.val == "ORANGE")) / raw.no_students * 100,
+                    "o-val": getCount(week_data.result.filter(x => x.WEEK == s & x.val == "ORANGE"))
+                };
+                final["r-val"] = raw.no_students - (final["g-val"] + final["o-val"]);
+                final["r-per"] = final["r-val"] / raw.no_students * 100;
+                data.push(final);
+            }   
+            console.log(data);
+            ev.target.data = data.sort(function(a,b) { return -1; });
+        });
+
+        dataSource.events.on("done", function(ev) {
+            // Data loaded and parsed
+            console.log(ev.target.data);
+        });
+        dataSource.events.on("error", function(ev) {
+            console.log("Oopsy! Something went wrong");
+        });
+
+        // Create axes
+        var categoryAxis = chart.yAxes.push(new am4charts.CategoryAxis());
+        categoryAxis.dataFields.category = "category";
+        categoryAxis.dataFields.date_start = "s";
+        categoryAxis.dataFields.date_end = "e";
+        
+        categoryAxis.renderer.grid.template.location = 0;
+        categoryAxis.renderer.inversed = true;
+        categoryAxis.renderer.minGridDistance = 20;
+        categoryAxis.renderer.axisFills.template.disabled = false;
+        categoryAxis.renderer.axisFills.template.fillOpacity = 0.05; // zebra stripes
+
+        categoryAxis.renderer.labels.template.minWidth = 120;
+        categoryAxis.renderer.labels.template.fontSize = '12px';
+        categoryAxis.renderer.labels.template.textAlign = 'end';
+
+        categoryAxis.adapter.add("getTooltipText", (text, target) => {
+            let data = target._tooltipDataItem,
+                df = new am4core.DateFormatter(),
+                sd = df.format(data.date_start,"MMM d"),
+                ed = df.format(data.date_end,"MMM d");
+            if (df.format(data.date_start,"MMM") == df.format(data.date_end,"MMM")) {
+                ed = df.format(data.date_end,"d");
+            }
+            return `[#000000]${sd}[/] [#999999]-[/] [#000000]${ed}[/]`;
+        });
+
+        var axisTooltip = categoryAxis.tooltip;
+        axisTooltip.fontSize = '12px';
+        axisTooltip.background.fill = am4core.color("#FFFFFF");
+        axisTooltip.background.strokeWidth = 0;
+        axisTooltip.background.cornerRadius = 0;
+        axisTooltip.background.pointerLength = 0;
+        axisTooltip.dx = -5;
+
+        chart.cursor = new am4charts.XYCursor();
+        chart.cursor.lineX.disabled = true;
+        chart.cursor.lineY.disabled = true;
+        chart.cursor.behavior = "none";
+
+        var valueAxis = chart.xAxes.push(new am4charts.ValueAxis());
+        valueAxis.min = 0;
+        valueAxis.max = 100;
+        valueAxis.strictMinMax = true; // *
+        valueAxis.calculateTotals = true; // *
+        valueAxis.renderer.minGridDistance = 50;
+        valueAxis.renderer.ticks.template.length = 5;
+        valueAxis.renderer.ticks.template.disabled = false;
+        valueAxis.renderer.ticks.template.strokeOpacity = 0.4;
+        valueAxis.renderer.labels.template.adapter.add("text", function(text) {
+            return text + "%";
+        })
+
+        valueAxis.cursorTooltipEnabled = false; // disable tooltip
+
+        // Legend
+        chart.legend = new am4charts.Legend();
+        chart.legend.position = "top";
+
+        chart.legend.labels.template.minWidth = 250;
+        chart.legend.labels.template.truncate = false;
+        chart.legend.labels.template.wrap = true;
+
+        // Create series
+        function createSeries(field, val, name, tooltip, color) {
+            var series = chart.series.push(new am4charts.ColumnSeries());
+            series.dataFields.valueX = field;
+            series.dataFields.valueCount = val;
+            series.dataFields.valueTooltip = tooltip;
+            series.dataFields.categoryY = "category";
+            series.stacked = true;
+            series.name = name;
+            series.stroke = color;
+            series.fill = color;
+            series.columns.template.tooltipText = `[bold]${tooltip}[/]: 
+                No Students: {valueCount}
+                {valueX.totalPercent.formatNumber('#.0')}%`;
+            series.tooltip.pointerOrientation = "vertical";
+            series.columns.template.tooltipY = 0;
+            
+            var bullet = series.bullets.push(new am4charts.LabelBullet());
+            bullet.interactionsEnabled = false;
+            bullet.label.text = "{valueX.totalPercent.formatNumber('#.')}%";
+            bullet.label.fill = am4core.color("#ffffff");
+            bullet.label.fontSize = '12px';
+            bullet.locationX = 0.5;
+
+            return series;
+        }
+
+        var series_array = [
+            {tooltip: "Has not logged in", category: "Has not logged in", color: "RED", value: "r-val", per: "r-per"},
+            {tooltip: "Logged in to Vula (Limited)", category: "Logged in to Vula but limited or no activity, and/or accessed Vula only from a smartphone", color: "ORANGE", value: "o-val", per: "o-per"},
+            {tooltip: "Active engagement", category: "Active engagement in 2 or more course sites over 2 or more days", color: "GREEN", value: "g-val", per: "g-per"}
+        ];
+
+        $.each(series_array, function(i, line) {
+            createSeries(line['per'], line['value'], line['category'], line['tooltip'], am4core.color(getColor(line['color'])));
+        });
+
+        chart.data.sort(function(a,b) { return -1; });
+    }
+
+    $(function() {
+        
+        var error_count = 0,
+            showState = function(_state, instant, err = false) {
+                _state = _state || 0;
+                instant = instant || false;
+                if (err) {
+                    console.log(err);
+                }
+                if (instant) {
+                    chart_div.html(tmpl('tmpl-state', {state: _state, err: err, c: error_count, svg: 'static/grid.svg'}));
+                } else {
+                    if ($('#state:visible').length) {
+                        $('#state').fadeOut(350, function() {
+                            showState(_state, instant, err);
+                        });
+                    } else {
+                        $("#graphs").hide().html(tmpl('tmpl-state', {state: _state,  err: err, c: error_count, svg: 'static/grid.svg'})).fadeIn(300);
+                    }
+                }
+            },
+            init = function() {
+                showState(0, true);
+                
+                $.get('{{$getInfoURL}}', function(_data) {
+                    site_info = _data;
+                    
+                    // _data['download'] = $('#title').data('url');
+                    // $('#title').html(tmpl('tmpl-link', _data));
+
+                    if (_data.success == "1") {
+                        console.log('done : 1');
+                        drawGraph(_data.title, _data.no_students, _data.start_week, _data.end_week, _data.term);
+
+                    //     let show_login = false;
+                    //     $.each(data.result, function(i,d) { 
+                    //         if (!show_login) { 
+                    //             show_login = ((new Date() >= new Date(d.start)) && (new Date() <= new Date(d.active))) && l; 
+                    //         } 
+                    //     });
+
+                    //     $("#last").html(tmpl('tmpl-last-saved', {'students': _data.no_students, 
+                    //                                             'updated' : "",
+                    //                                             'show_login': show_login, 
+                    //                                             'start_date': _data.start_date,
+                    //                                             'end_date': _data.end_date }));
+
+                    //     $("#graphs").html(tmpl('tmpl-graphs', _data));
+                    //     $('.tt').tooltipster({ theme: 'tooltipster-borderless', maxWidth: 300, distance: 0, animationDuration: 200, animation: 'grow'});
+
+                        
+                    //     $("#graphs > div").filter(function() { 
+                    //         return $(this).data("loaded") == false
+                    //     }).each(function () {
+                    //         fetchWeekData($(this).data('week'));
+                    //     });
+                    } else {
+                        console.log('done : 0');
+                        // $("#last").html(tmpl('tmpl-last-saved', {'students': 'NA', 'updated' : '' }))
+                        // showState(1, false, _data['err']);
+                    }
+
+                }).fail(function() {
+                    // showState(2);
+                    console.log('fail : 0');
+                });
+            };
+
+        init();
+    });
+</script>

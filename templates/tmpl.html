@@ -1,0 +1,149 @@
+<script type="text/x-tmpl" id="tmpl-link">
+    <h4>
+        Course Analytics {%=(o.title != undefined ? 'for '+ o.title : '')%}
+        {% if ((o.no_students != '') & (o.no_students != undefined)) { %}
+            <span>({%=formatNumber(o.no_students)%} students)</span>
+        {% } %}
+        <span>[{%=o.term%}]</span>
+    </h4>
+
+    {% if (o.hash) { if (o.hash.length > 0) { %}
+        <div>
+            {% if (o.hash.length == 1) { 
+                var h = Object.entries(o.hash[0])[0]; %}
+            <a href="https://srvslscet001.uct.ac.za/optout/survey/{%=h[1]%}" 
+                target="_blank" 
+                style="font-weight: normal;">
+                <i class="fas fa-external-link-alt"></i>
+                Student Access Survey results <span style="color: #333;"> (includes orientation activity and poll in CSV download)</span>
+            </a>
+            {% } else { %}
+                <label>Student Access Survey results:</label>
+                {% $.each(o.hash, function (k, v) { 
+                    var h = Object.entries(v)[0]; %}
+                    <a href="https://srvslscet001.uct.ac.za/optout/survey/{%=h[1]%}" 
+                        target="_blank" 
+                        style="font-weight: normal; padding-left: 10px;">
+                        <i class="fas fa-external-link-alt"></i>
+                        {%=h[0]%}
+                    </a>
+                {% }); %}
+            {% } %}
+        </div>
+    {% } } %}
+    <div>
+        <a target="_blank" 
+            href="https://docs.google.com/document/d/1x-RExML5xfAi6NcQeia5HfzJq-Qq8uQzZSqO8ofNogQ/edit?usp=sharing"
+            style="font-weight: normal;">
+            <i class="fas fa-info-circle"></i>
+            About Course Analytics <span style="color: #333;"> (including category definitions)</span>
+        </a>
+    </div>
+    {% if (o.download != '') { %}
+        <div>
+            <a href="{%=o.download%}" target="_blank" title="Download CSV" class="download btn btn-default btn-xs">
+                <i class="fas fa-file-csv"></i>
+                Download CSV File
+            </a>
+        </div>
+    {% } %}
+</script>
+<script type="text/x-tmpl" id="tmpl-graphs">
+    {%  
+        $.each( o.result, function(i, w) {
+            include('tmpl-graph-column', getWeekData(o.term, o.no_students, w, o.real_weeks, true));
+        });
+    %}
+</script>
+<script type="text/x-tmpl" id="tmpl-graph-column">
+    {% if (o.full) { %}
+    <div id="item-{%=o.id%}" data-week="{%=o.id%}" data-real="{%=o.real%}" data-loaded="{%=o.loaded%}" data-realweek="{%=o.realweek%}" 
+        data-start="{%=o.st%}" data-end="{%=o.ed%}" data-total="{%=o.no_students%}" data-showdate="{%=o.showdate ? "1" : "0" %}"
+        class="item {%=(o.showdate?'date':'')%}" data-title="{%=o.title%}" data-date="{%=moment(o.st).format("MMM D")%} - {%=moment(o.ed).format("MMM D")%}">
+    {% } %}    
+        {%  $.each(o.list, function(e, el) { 
+            el.x = o.no_students;
+            include('tmpl-graph-line', el); 
+        }); %}
+    {% if (o.full) { %}
+    </div>
+    {% } %}
+</script>
+<script type="text/x-tmpl" id="tmpl-graph-line">
+    {% var p = o.x == 0 ? 1 : (o.v / o.x) * 100; %}
+    <div class="item_{%=o.c%} tt" style="flex: {%=p%};" 
+        title="{% if(o.c != 'empty') { %}{%=(o.t != ''? o.t+": " : "")%}{%=Math.round(p, 2)%} % ({%=o.v%})"{% } else { %}{%=o.t%}{% } %}">
+    </div>
+</script>
+<script type="text/x-tmpl" id="tmpl-last-saved">
+    <div>
+        <div id="legend_green" class="green">Likely to be able to participate effectively in remote learning</div>
+        <div id="legend_orange" class="orange">Substantial uncertainty about ability to participate effectively in remote learning</div>
+        <div id="legend_red" class="red">Unlikely to be able to participate effectively in remote learning</div>
+        <div id="legend_blue" class="blue" style="{%=(o.show_login ? "" : "display:none")%}">Logged in to Vula in the time period</div>
+        <div id="legend_gray" class="gray">Did not participate in the survey or poll, not logged in yet or no data for this student</div>
+    </div>
+    <div>
+        <div>
+            <i class="far fa-clock"></i>&nbsp;
+            Last updated: <span id="last_updated" data-date="{%=o.updated%}">
+                    {% if (o.updated != '') { %}{%=moment(o.updated).calendar()%}</span>{% } else { %}Never{% } %}</span>
+        </div>        
+        <div>
+            <i class="fas fa-users"></i>&nbsp;
+            Students: <span>{%=o.students%}</span>
+        </div>
+        <div>
+            <i class="fa fa-calendar-o"></i>&nbsp;
+            Dates: <span style="color: #888;">{%=moment(o.start_date).format("MMM D")%} - {%=moment(o.end_date).format("MMM D, YYYY")%}</span>
+        </div>
+    </div>
+</script>
+<script type="text/x-tmpl" id="tmpl-state">
+<div id="state" class="fa-3x">
+    <div>
+        {% switch(o.state) { 
+            case 0: %}<img src="{%=o.svg%}" width="50" alt=""> Loading course information ... {% break; 
+            case 1: %}
+                <a href="#" class="reload">The course information is empty <small>(click to retry)</small>.</a>
+                {% if ((o.err == 'Unauthorized') || (o.c >= 3)) { %}<span class="email">If this problem persists please contact <a href="mailto:help@vula.uct.ac.za?subject=Vula - Please help with: Course Dashboard">help@vula.uct.ac.za</a>.</span>{% } %}
+            {% break; 
+            case 2: %}<span class="error">Course information could not be loaded.</span>{% break; 
+        } %}
+    </div>
+</div>
+</script>
+<script type="text/x-tmpl" id="tmpl-internal-loader">
+<svg version="1.1" id="L4" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+  viewBox="0 0 60 100" enable-background="new 0 0 0 0" xml:space="preserve">
+  <circle fill="#777" stroke="none" cx="6" cy="50" r="6">
+    <animate
+      attributeName="opacity"
+      dur="1s"
+      values="0;1;0"
+      repeatCount="indefinite"
+      begin="0.1"/>    
+  </circle>
+  <circle fill="#777" stroke="none" cx="26" cy="50" r="6">
+    <animate
+      attributeName="opacity"
+      dur="1s"
+      values="0;1;0"
+      repeatCount="indefinite" 
+      begin="0.2"/>       
+  </circle>
+  <circle fill="#777" stroke="none" cx="46" cy="50" r="6">
+    <animate
+      attributeName="opacity"
+      dur="1s"
+      values="0;1;0"
+      repeatCount="indefinite" 
+      begin="0.3"/>     
+  </circle>
+</svg>
+</script>
+<script type="text/x-tmpl" id="tmpl-internal-error">
+    <a href="#" ref="{%=o.id%}" title="Click to reload week data">
+        <img src="static/error.svg" width="50" alt="Error loading week">
+    </a>
+</script>
