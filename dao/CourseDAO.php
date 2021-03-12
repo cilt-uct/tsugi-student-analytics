@@ -23,8 +23,7 @@ class CourseDAO {
     public function getJSON($site_id, $is_csv = false) {
         $data = array('site' => $site_id, 
                         'real_weeks' => $this->real_weeks ? 1 : 0,
-                        'full_weeks' => 0,
-                        'active_year' => 2020, # this tool is locked in 2020
+                        'full_weeks' => 1,
                         'username' => $this->username, 
                         'password' => $this->password);
         if ($is_csv) {
@@ -47,7 +46,6 @@ class CourseDAO {
 
         $data = array('site' => $site_id, 
                         'real_weeks' => $this->real_weeks ? 1 : 0,
-                        'active_year' => 2020, # this tool is locked in 2020
                         'username' => $this->username, 
                         'password' => $this->password,
                         'week' => $week,

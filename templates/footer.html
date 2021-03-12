@@ -12,11 +12,12 @@
     jQuery.fn.exists = function(){ return this.length > 0; }
 
     const WEEK_SIZE = 60,
-        COLOURS = {"GREEN" : "#8bc34a", "ORANGE": "#ff9800", "RED": "#F44336"},
+        COLOURS = {"GREEN" : "#8bc34a", "ORANGE": "#ff9800", "RED": "#F44336", "GRAY": "#E6E6E6"},
         chartdiv = "chartdiv";
 
     let getColor = c => COLOURS[c],
-        chart_div = $(`#${chartdiv}`);
+        chart_div = $(`#${chartdiv}`),
+        error_count = 0,
         site_info = null,
         week_data = null,
         chart = null;
@@ -28,11 +29,9 @@
         return 0;
     }
 
-    function drawGraph(site_title, no_students, start_week, end_week, term) {
+    function drawGraph(site_title, no_students, start_week, end_week, current_no_weeks, term) {
 
-        const no_weeks = end_week - start_week;
-
-        chart_div.css("height", `${(no_weeks * WEEK_SIZE < 500 ? 500 : no_weeks * WEEK_SIZE)}px`);
+        chart_div.css("height", `${(current_no_weeks * WEEK_SIZE < 500 ? 500 : current_no_weeks * WEEK_SIZE)}px`);
 
         // Create chart instance
         chart = am4core.create(chartdiv, am4charts.XYChart);
@@ -70,6 +69,9 @@
                 data = [];
 
             week_data = raw;
+
+            if (data.success == "1") {
+            /*
             for (let s = raw.course_start_week, c = 1; s <= raw.course_end_week; s++, c++) { 
                 let final = {
                     "category": "Week " + (raw.real_weeks ? s : c),
@@ -84,7 +86,26 @@
                 final["r-val"] = raw.no_students - (final["g-val"] + final["o-val"]);
                 final["r-per"] = final["r-val"] / raw.no_students * 100;
                 data.push(final);
-            }   
+            }
+            */
+            } else {
+                // Error loading data
+                data = [{
+                    "category": "Next Week",
+                    "s": "",
+                    "e": "",
+                    "no": 1,
+                    "g-per": -1,
+                    "g-val": -1,
+                    "o-per": -1,
+                    "o-val": -1,
+                    "r-val": -1,
+                    "r-per": -1,
+                    "z-per": 100,
+                    "z-val": raw.no_students
+                }];
+            }
+            
             console.log(data);
             ev.target.data = data.sort(function(a,b) { return -1; });
         });
@@ -114,8 +135,11 @@
         categoryAxis.renderer.labels.template.textAlign = 'end';
 
         categoryAxis.adapter.add("getTooltipText", (text, target) => {
-            let data = target._tooltipDataItem,
-                df = new am4core.DateFormatter(),
+            let data = target._tooltipDataItem;
+
+            if ((data.date_start == "") || (data.date_end == "")) return "";
+
+            let df = new am4core.DateFormatter(),
                 sd = df.format(data.date_start,"MMM d"),
                 ed = df.format(data.date_end,"MMM d");
             if (df.format(data.date_start,"MMM") == df.format(data.date_end,"MMM")) {
@@ -161,7 +185,7 @@
         chart.legend.labels.template.wrap = true;
 
         // Create series
-        function createSeries(field, val, name, tooltip, color) {
+        function createSeries(field, val, name, tooltip, color, _cls) {
             var series = chart.series.push(new am4charts.ColumnSeries());
             series.dataFields.valueX = field;
             series.dataFields.valueCount = val;
@@ -171,9 +195,25 @@
             series.name = name;
             series.stroke = color;
             series.fill = color;
-            series.columns.template.tooltipText = `[bold]${tooltip}[/]: 
-                No Students: {valueCount}
-                {valueX.totalPercent.formatNumber('#.0')}%`;
+            // series.columns.template.tooltipText = `[bold]${tooltip}[/]: 
+            //     Students: {valueCount}
+            //     {valueX.totalPercent.formatNumber('#.0')}%`;               
+            series.columns.template.adapter.add("tooltipText", (text, target) => {
+                var data = target.tooltipDataItem.dataContext,
+                    _tooltip_color = _cls,
+                    partial = `[bold]${tooltip}[/]`;
+                    full = `[bold]${tooltip}[/]: 
+                            Students: {valueCount}
+                            {valueX.totalPercent.formatNumber('#.0')}%`;
+
+                if ((_tooltip_color == "GREEN") && (data['g-val'] > 0)) return full;
+                if ((_tooltip_color == "ORANGE") && (data['o-val'] > 0)) return full;
+                if ((_tooltip_color == "RED") && (data['r-val'] > 0)) return full;
+                if (_tooltip_color == "GRAY") return partial;
+
+                return '';
+            });
+
             series.tooltip.pointerOrientation = "vertical";
             series.columns.template.tooltipY = 0;
             
@@ -190,57 +230,60 @@
         var series_array = [
             {tooltip: "Has not logged in", category: "Has not logged in", color: "RED", value: "r-val", per: "r-per"},
             {tooltip: "Logged in to Vula (Limited)", category: "Logged in to Vula but limited or no activity, and/or accessed Vula only from a smartphone", color: "ORANGE", value: "o-val", per: "o-per"},
-            {tooltip: "Active engagement", category: "Active engagement in 2 or more course sites over 2 or more days", color: "GREEN", value: "g-val", per: "g-per"}
+            {tooltip: "Active engagement", category: "Active engagement in 2 or more course sites over 2 or more days", color: "GREEN", value: "g-val", per: "g-per"},
+            {tooltip: "No data yet", category: "No data yet", color: "GRAY", value: "z-val", per: "z-per"}
         ];
 
         $.each(series_array, function(i, line) {
-            createSeries(line['per'], line['value'], line['category'], line['tooltip'], am4core.color(getColor(line['color'])));
+            createSeries(line['per'], line['value'], line['category'], line['tooltip'], am4core.color(getColor(line['color'])), line['color']);
         });
 
         chart.data.sort(function(a,b) { return -1; });
     }
 
+    function showState(_state = 0, instant = false, err = false) {
+        if (err) {
+            console.log(err);
+        }
+        if (instant) {
+            chart_div.html(tmpl('tmpl-state', {state: _state, err: err, c: error_count, svg: 'static/grid.svg'}));
+        } else {
+            if ($('#state:visible').length) {
+                $('#state').fadeOut(350, function() {
+                    showState(_state, instant, err);
+                });
+            } else {
+                chart_div.hide().html(tmpl('tmpl-state', {state: _state,  err: err, c: error_count, svg: 'static/grid.svg'})).fadeIn(300);
+            }
+        }
+    }
+    
     $(function() {
         
-        var error_count = 0,
-            showState = function(_state, instant, err = false) {
-                _state = _state || 0;
-                instant = instant || false;
-                if (err) {
-                    console.log(err);
-                }
-                if (instant) {
-                    chart_div.html(tmpl('tmpl-state', {state: _state, err: err, c: error_count, svg: 'static/grid.svg'}));
+        function init () {
+            showState(0, true);
+            
+            $.get('{{$getInfoURL}}', function(_data) {
+                site_info = _data;
+
+                if (_data.success == "1") {
+                    drawGraph(_data.title, _data.no_students, _data.start_week, _data.end_week, _data.result.length, _data.term);
                 } else {
-                    if ($('#state:visible').length) {
-                        $('#state').fadeOut(350, function() {
-                            showState(_state, instant, err);
-                        });
-                    } else {
-                        $("#graphs").hide().html(tmpl('tmpl-state', {state: _state,  err: err, c: error_count, svg: 'static/grid.svg'})).fadeIn(300);
-                    }
+                    showState(1, false, _data['err']);
                 }
-            },
-            init = function() {
-                showState(0, true);
-                
-                // $.get('{{$getInfoURL}}', function(_data) {
-                //     site_info = _data;
 
-                //     if (_data.success == "1") {
-                //         console.log('done : 1');
-                //         drawGraph(_data.title, _data.no_students, _data.start_week, _data.end_week, _data.term);
-                //     } else {
-                //         console.log('done : 0');
-                //         // showState(1, false, _data['err']);
-                //     }
+            }).fail(function() {
+                showState(2);
+            });
+        };
 
-                // }).fail(function() {
-                //     // showState(2);
-                //     console.log('fail : 0');
-                // });
-            };
+        init();
+    });
 
+    // reload if there is an error - user click action
+    chart_div.on("click","#state a.reload", function(event) {
+        event.preventDefault();
+        error_count ++;
         init();
     });
 </script>
