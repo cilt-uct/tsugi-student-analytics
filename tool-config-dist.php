@@ -8,7 +8,8 @@ $tool = array(
         "url"        => "https://api.server.com/v.1.0/",
         "username"   => "username",
         "password"   => "password",
-        "real_weeks" => false
+        "real_weeks" => false,
+        // "site"       => '[SAKAI SITE_ID]' // ONLY USE THIS FOR DEV - this will overwrite the LTI SITE-ID
     ),
     "config" => basename(__FILE__, '.php')
 );

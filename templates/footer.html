@@ -224,48 +224,21 @@
             init = function() {
                 showState(0, true);
                 
-                $.get('{{$getInfoURL}}', function(_data) {
-                    site_info = _data;
-                    
-                    // _data['download'] = $('#title').data('url');
-                    // $('#title').html(tmpl('tmpl-link', _data));
+                // $.get('{{$getInfoURL}}', function(_data) {
+                //     site_info = _data;
 
-                    if (_data.success == "1") {
-                        console.log('done : 1');
-                        drawGraph(_data.title, _data.no_students, _data.start_week, _data.end_week, _data.term);
+                //     if (_data.success == "1") {
+                //         console.log('done : 1');
+                //         drawGraph(_data.title, _data.no_students, _data.start_week, _data.end_week, _data.term);
+                //     } else {
+                //         console.log('done : 0');
+                //         // showState(1, false, _data['err']);
+                //     }
 
-                    //     let show_login = false;
-                    //     $.each(data.result, function(i,d) { 
-                    //         if (!show_login) { 
-                    //             show_login = ((new Date() >= new Date(d.start)) && (new Date() <= new Date(d.active))) && l; 
-                    //         } 
-                    //     });
-
-                    //     $("#last").html(tmpl('tmpl-last-saved', {'students': _data.no_students, 
-                    //                                             'updated' : "",
-                    //                                             'show_login': show_login, 
-                    //                                             'start_date': _data.start_date,
-                    //                                             'end_date': _data.end_date }));
-
-                    //     $("#graphs").html(tmpl('tmpl-graphs', _data));
-                    //     $('.tt').tooltipster({ theme: 'tooltipster-borderless', maxWidth: 300, distance: 0, animationDuration: 200, animation: 'grow'});
-
-                        
-                    //     $("#graphs > div").filter(function() { 
-                    //         return $(this).data("loaded") == false
-                    //     }).each(function () {
-                    //         fetchWeekData($(this).data('week'));
-                    //     });
-                    } else {
-                        console.log('done : 0');
-                        // $("#last").html(tmpl('tmpl-last-saved', {'students': 'NA', 'updated' : '' }))
-                        // showState(1, false, _data['err']);
-                    }
-
-                }).fail(function() {
-                    // showState(2);
-                    console.log('fail : 0');
-                });
+                // }).fail(function() {
+                //     // showState(2);
+                //     console.log('fail : 0');
+                // });
             };
 
         init();

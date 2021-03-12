@@ -23,10 +23,10 @@ $menu = false;
 
 $config = [
     'instructor' => $USER->instructor, 
-    'styles'     => [ 'static/tooltipster.bundle.min.css', 'static/user.css' ],
-    'scripts'    => [ $CFG->staticroot .'/js/moment.min.js', 'static/tooltipster.bundle.min.js' ],
-    'getInfoURL'     => addSession('actions/GetInfo.php'),
-    'fetchWeekDataUrl'     => addSession('actions/GetWeek.php'),
+    'styles'     => [ 'static/user.css' ],
+    'scripts'    => [ $CFG->staticroot .'/js/moment.min.js'],
+    'getInfoURL'        => addSession('actions/GetInfo.php'),
+    'fetchWeekDataUrl'  => addSession('actions/GetWeek.php'),
     'tool' => $tool
 ];
 
@@ -39,28 +39,9 @@ $OUTPUT->bodyStart();
 
 $OUTPUT->topNav($menu);
 
-// if ($tool['debug']) {
-//     echo '<pre>'; print_r($config); echo '</pre>';
-// }
-function csvtojson($file, $delimiter) {
-    if (($handle = fopen($file, "r")) === false)
-    {
-            die("can't open the file.");
-    }
-
-    $csv_headers = fgetcsv($handle, 4000, $delimiter);
-    $csv_json = array();
-
-    while ($row = fgetcsv($handle, 4000, $delimiter)) {
-            $csv_json[] = array_combine($csv_headers, $row);
-    }
-
-    fclose($handle);
-    return json_encode($csv_json);
+if ($tool['debug']) {
+    echo '<pre>'; print_r($config); echo '</pre>';
 }
-
-$config['raw'] = csvtojson("static/data.csv",",");
-
 
 Template::view('templates/body.html', $config);
 
