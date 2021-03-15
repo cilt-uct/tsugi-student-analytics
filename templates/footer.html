@@ -12,7 +12,7 @@
     jQuery.fn.exists = function(){ return this.length > 0; }
 
     const WEEK_SIZE = 60,
-        COLOURS = {"GREEN" : "#8bc34a", "ORANGE": "#ff9800", "RED": "#F44336", "GRAY": "#E6E6E6"},
+        COLOURS = {"GREEN" : "#8bc34a", "ORANGE": "#ff9800", "RED": "#F44336", "GRAY": "#E6E6E6", "BLUE": "#4A8BC3"},
         chartdiv = "chartdiv";
 
     let getColor = c => COLOURS[c],
@@ -20,13 +20,144 @@
         error_count = 0,
         site_info = null,
         week_data = null,
-        chart = null;
+        chart = null,
+        error_container = null,
+        indicator = null,
+        indicatorInterval;
 
-    function getCount(x) {
-        if (x.length > 0) {
-            return parseInt(x[0].c, 10);
+    function fillWeek(line, no_students, {TERM = "", WEEK = cnt, c = 0, end_date = "", start_date = "", val = ""}) {
+        switch(val) {
+            case "GREEN": 
+                line['g-per'] = parseInt(c, 10) / no_students * 100;
+                line['g-val'] = parseInt(c, 10);
+                break;
+            case "ORANGE": 
+                line['o-per'] = parseInt(c, 10) / no_students * 100;
+                line['o-val'] = parseInt(c, 10);
+                break;
         }
-        return 0;
+        return line;
+    }
+
+    function getEmptyWeek(cnt = 1, no_students = 0, use_no_data = false, {TERM = "", WEEK = cnt, c = 0, end_date = "", start_date = "", val = ""}) {
+        // console.log(`${use_no_data} ${TERM} ${WEEK} ${c} ${end_date} ${start_date} ${val}`);
+
+        let line = {
+                    "category": "Week " + (cnt > 0 ? cnt : WEEK),
+                    "s": start_date,
+                    "e": end_date,
+                    "no": cnt,
+                    "g-per": 0,
+                    "g-val": 0,
+                    "o-per": 0,
+                    "o-val": 0,
+                    "r-val": 0,
+                    "r-per": 0,
+                    "x-per": 0,
+                    "x-val": 0,
+                    "z-per": 0,
+                    "z-val": 0
+                };
+        switch(val) {
+            case "GREEN": 
+                line['g-per'] = parseInt(c, 10) / no_students * 100;
+                line['g-val'] = parseInt(c, 10);
+                break;
+            case "ORANGE": 
+                line['o-per'] = parseInt(c, 10) / no_students * 100;
+                line['o-val'] = parseInt(c, 10);
+                break;
+        }
+        if (use_no_data) {
+            line['z-per'] = 100;
+            line['z-val'] = no_students;
+        }
+            
+        return line;
+    }
+
+    function showIndicator() {
+        
+        if (!indicator) {
+            indicator = chart.tooltipContainer.createChild(am4core.Container);
+            indicator.background.fill = am4core.color("#fff");
+            indicator.background.fillOpacity = 0.8;
+            indicator.width = am4core.percent(100);
+            indicator.height = am4core.percent(100);
+
+            var indicatorLabel = indicator.createChild(am4core.Label);
+            indicatorLabel.text = "Loading week information ...";
+            indicatorLabel.align = "center";
+            indicatorLabel.valign = "middle";
+            indicatorLabel.fontSize = 20;
+            indicatorLabel.dy = 50;
+            
+            var hourglass = indicator.createChild(am4core.Image);
+            hourglass.href = "static/hourglass.svg";
+            hourglass.align = "center";
+            hourglass.valign = "middle";
+            hourglass.horizontalCenter = "middle";
+            hourglass.verticalCenter = "middle";
+            hourglass.scale = 0.7;
+        }
+        
+        indicator.hide(0);
+        indicator.show();
+        
+        clearInterval(indicatorInterval);
+        indicatorInterval = setInterval(function() {
+            hourglass.animate([{
+            from: 0,
+            to: 360,
+            property: "rotation"
+            }], 2000);
+        }, 3000);
+    }
+
+    function hideIndicator() {
+        indicator.hide();
+        clearInterval(indicatorInterval);
+    }
+
+    function showErrorButton() {
+
+        if (!error_container) {        
+            error_container = chart.tooltipContainer.createChild(am4core.Container);
+            error_container.background.fill = am4core.color("#fff");
+            error_container.background.fillOpacity = 0.8;
+            error_container.width = am4core.percent(100);
+            error_container.height = am4core.percent(100);
+
+            let error_button = error_container.createChild(am4core.Button);
+            error_button.label.text = '[bold]The course information is empty[/]\n(click to retry)';
+            
+            error_button.padding(14, 14, 14, 14);
+            error_button.background.cornerRadius(4, 4, 4, 4);
+            error_button.background.fill = am4core.color("#25283D");
+            error_button.label.fill = am4core.color("#FFFFFF");
+            error_button.label.fontSize = '14px';
+
+            error_button.contentAlign = "center"
+            error_button.align = "center";
+            error_button.valign = "middle";
+            error_button.dy = 70;
+            error_button.events.on("hit", function() {
+                console.log("retry");
+                if (chart.dataSource) {
+                    chart.dataSource.load();
+                }
+            });
+
+            error_button.icon = new am4core.Image();
+            error_button.icon.href = "static/error.svg";
+            error_button.icon.marginRight = 15;
+            error_button.icon.scale = 0.6;
+
+            error_button.background.states.getKey("hover").properties.fill = am4core.color("#606271");
+        }
+        
+        error_container.hide(0);
+        error_container.show();
     }
 
     function drawGraph(site_title, no_students, start_week, end_week, current_no_weeks, term) {
@@ -49,10 +180,6 @@
         label.fill = am4core.color("#888888");
         label.fontSize = '14px';
 
-        // chart.dataSource.url = "{{ $fetchWeekDataUrl }}";
-        // chart.dataSource.parser = new am4core.JSONParser();
-        // chart.dataSource.parser.options.emptyAs = 0;
-
         var dataSource = chart.dataSource;
         dataSource.parser = new am4core.JSONParser();
         dataSource.parser.options.emptyAs = 0;
@@ -62,6 +189,10 @@
             { key: "end_week", value: end_week },
             { key: "term", value: term }
         ];
+        
+        chart.dataSource.events.on("started", function(ev) {
+            // showIndicator();
+        });
 
         chart.dataSource.events.on("parseended", function(ev) {
             // parsed data is assigned to data source's `data` property
@@ -69,53 +200,47 @@
                 data = [];
 
             week_data = raw;
+            if (raw.success == 1) {
+                console.log("week data: success");
+                $.each(raw.result, function(i, el) {
+                    console.log(el)
+                    if (!data[parseInt(el.WEEK)]) {
+                        data[parseInt(el.WEEK)] = getEmptyWeek(el.WEEK, raw.no_students, false, el);
+                    } else {
+                        fillWeek(data[parseInt(el.WEEK)], raw.no_students, el);
+                    }
+                });
 
-            if (data.success == "1") {
-            /*
-            for (let s = raw.course_start_week, c = 1; s <= raw.course_end_week; s++, c++) { 
-                let final = {
-                    "category": "Week " + (raw.real_weeks ? s : c),
-                    "s": week_data.result.filter(x => x.WEEK == s)[0].start_date,
-                    "e": week_data.result.filter(x => x.WEEK == s)[0].end_date,
-                    "no": 6,
-                    "g-per": getCount(week_data.result.filter(x => x.WEEK == s & x.val == "GREEN")) / raw.no_students * 100,
-                    "g-val": getCount(week_data.result.filter(x => x.WEEK == s & x.val == "GREEN")),
-                    "o-per": getCount(week_data.result.filter(x => x.WEEK == s & x.val == "ORANGE")) / raw.no_students * 100,
-                    "o-val": getCount(week_data.result.filter(x => x.WEEK == s & x.val == "ORANGE"))
-                };
-                final["r-val"] = raw.no_students - (final["g-val"] + final["o-val"]);
-                final["r-per"] = final["r-val"] / raw.no_students * 100;
-                data.push(final);
-            }
-            */
+                data = data.filter(x => x).map(function(el){
+
+                    if (moment(el.s,"YYYY-MM-DD").add(3, 'days').diff(new Date(), 'days') > 0) {
+                        el["z-val"] = raw.no_students - (el["g-val"] + el["o-val"]);
+                        el["z-per"] = el["z-val"] / raw.no_students * 100;
+                    } else {
+                        el["r-val"] = raw.no_students - (el["g-val"] + el["o-val"]);
+                        el["r-per"] = el["r-val"] / raw.no_students * 100;
+                    }
+                    console.log(el); 
+                    return el; 
+                });
+
             } else {
+                console.log("week data: error");
                 // Error loading data
-                data = [{
-                    "category": "Next Week",
-                    "s": "",
-                    "e": "",
-                    "no": 1,
-                    "g-per": -1,
-                    "g-val": -1,
-                    "o-per": -1,
-                    "o-val": -1,
-                    "r-val": -1,
-                    "r-per": -1,
-                    "z-per": 100,
-                    "z-val": raw.no_students
-                }];
+                data = [ getEmptyWeek(raw.course_start_week, raw.no_students, true,"") ];
             }
-            
             console.log(data);
             ev.target.data = data.sort(function(a,b) { return -1; });
         });
 
         dataSource.events.on("done", function(ev) {
             // Data loaded and parsed
-            console.log(ev.target.data);
+            hideIndicator();
         });
+
         dataSource.events.on("error", function(ev) {
-            console.log("Oopsy! Something went wrong");
+            showErrorButton();
+            chart.data = [];
         });
 
         // Create axes
@@ -209,7 +334,8 @@
                 if ((_tooltip_color == "GREEN") && (data['g-val'] > 0)) return full;
                 if ((_tooltip_color == "ORANGE") && (data['o-val'] > 0)) return full;
                 if ((_tooltip_color == "RED") && (data['r-val'] > 0)) return full;
-                if (_tooltip_color == "GRAY") return partial;
+                if ((_tooltip_color == "BLUE") && (data['x-val'] > 0)) return full;
+                if ((_tooltip_color == "GRAY") && (data['z-val'] > 0)) return partial;
 
                 return '';
             });
@@ -217,21 +343,31 @@
             series.tooltip.pointerOrientation = "vertical";
             series.columns.template.tooltipY = 0;
             
-            var bullet = series.bullets.push(new am4charts.LabelBullet());
-            bullet.interactionsEnabled = false;
-            bullet.label.text = "{valueX.totalPercent.formatNumber('#.')}%";
-            bullet.label.fill = am4core.color("#ffffff");
-            bullet.label.fontSize = '12px';
-            bullet.locationX = 0.5;
+            // if (_cls != "GRAY") {
+                var bullet = series.bullets.push(new am4charts.LabelBullet());
+                bullet.interactionsEnabled = false;
+                bullet.label.text = "{valueX.totalPercent.formatNumber('#.')}%";
+                bullet.label.fill = (_cls == "GRAY" ? am4core.color("#444444") : am4core.color("#ffffff"));
+                bullet.label.fontSize = '12px';
+                bullet.locationX = 0.5;
+                // bullet.label.adapter.add("textOutput", function(text, target) {
+                bullet.label.adapter.add("text", function(text, target) {
+                    if (target.dataItem) {
+                        if (target.dataItem.valueCount == 0) return "";
+                    }
+                    return text;
+                });
+            // }
 
             return series;
         }
 
         var series_array = [
+            {tooltip: "No data yet", category: "No data yet", color: "GRAY", value: "z-val", per: "z-per"},
             {tooltip: "Has not logged in", category: "Has not logged in", color: "RED", value: "r-val", per: "r-per"},
             {tooltip: "Logged in to Vula (Limited)", category: "Logged in to Vula but limited or no activity, and/or accessed Vula only from a smartphone", color: "ORANGE", value: "o-val", per: "o-per"},
-            {tooltip: "Active engagement", category: "Active engagement in 2 or more course sites over 2 or more days", color: "GREEN", value: "g-val", per: "g-per"},
-            {tooltip: "No data yet", category: "No data yet", color: "GRAY", value: "z-val", per: "z-per"}
+            {tooltip: "Active engagement", category: "Active engagement in 2 or more course sites over 2 or more days", color: "GREEN", value: "g-val", per: "g-per"}
+            // {tooltip: "Logged in to Vula", category: "Logged in to Vula", color: "BLUE", value: "x-val", per: "x-per"}
         ];
 
         $.each(series_array, function(i, line) {
@@ -239,6 +375,8 @@
         });
 
         chart.data.sort(function(a,b) { return -1; });
+
+        
     }
 
     function showState(_state = 0, instant = false, err = false) {
