@@ -81,3 +81,23 @@ section h3 {
 .navbar-fixed-top {
   top: -200px;
 }
+
+.amcharts-amexport-item > a,
+.amcharts-amexport-item > a:hover,
+.amcharts-amexport-item > a:active {
+    color: #000;
+}
+
+li.amcharts-amexport-item.amcharts-amexport-item-level-0 {
+    width: 120px;
+    padding: 0.4em 0em 0.4em 0.4em;
+}
+
+li.amcharts-amexport-item.amcharts-amexport-item-level-0 > img { 
+    width: 100%; height: auto; 
+}
+
+/* .amcharts-amexport-top .amcharts-amexport-item > .amcharts-amexport-menu {
+    top: -3px!important;
+    left: 2px!important;
+} */

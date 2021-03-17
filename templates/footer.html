@@ -128,32 +128,32 @@
             error_container.width = am4core.percent(100);
             error_container.height = am4core.percent(100);
 
-            let error_button = error_container.createChild(am4core.Button);
-            error_button.label.text = '[bold]The course information is empty[/]\n(click to retry)';
+            let btn_error = error_container.createChild(am4core.Button);
+            btn_error.label.text = '[bold]The course information is empty[/]\n(click to retry)';
             
-            error_button.padding(14, 14, 14, 14);
-            error_button.background.cornerRadius(4, 4, 4, 4);
-            error_button.background.fill = am4core.color("#25283D");
-            error_button.label.fill = am4core.color("#FFFFFF");
-            error_button.label.fontSize = '14px';
+            btn_error.padding(14, 14, 14, 14);
+            btn_error.background.cornerRadius(4, 4, 4, 4);
+            btn_error.background.fill = am4core.color("#25283D");
+            btn_error.label.fill = am4core.color("#FFFFFF");
+            btn_error.label.fontSize = '14px';
 
-            error_button.contentAlign = "center"
-            error_button.align = "center";
-            error_button.valign = "middle";
-            error_button.dy = 70;
-            error_button.events.on("hit", function() {
+            btn_error.contentAlign = "center"
+            btn_error.align = "center";
+            btn_error.valign = "middle";
+            btn_error.dy = 70;
+            btn_error.events.on("hit", function() {
                 console.log("retry");
                 if (chart.dataSource) {
                     chart.dataSource.load();
                 }
             });
 
-            error_button.icon = new am4core.Image();
-            error_button.icon.href = "static/error.svg";
-            error_button.icon.marginRight = 15;
-            error_button.icon.scale = 0.6;
+            btn_error.icon = new am4core.Image();
+            btn_error.icon.href = "static/error.svg";
+            btn_error.icon.marginRight = 15;
+            btn_error.icon.scale = 0.6;
 
-            error_button.background.states.getKey("hover").properties.fill = am4core.color("#606271");
+            btn_error.background.states.getKey("hover").properties.fill = am4core.color("#606271");
         }
         
         error_container.hide(0);
@@ -179,6 +179,39 @@
         label.align = "right";
         label.fill = am4core.color("#888888");
         label.fontSize = '14px';
+
+        chart.exporting.filePrefix = site_title.replace(/[/\\?%*:|"<>]/g, '-'); 
+
+        chart.exporting.menu = new am4core.ExportMenu();
+        chart.exporting.menu.align = "right";
+        chart.exporting.menu.verticalAlign = "top";
+        chart.exporting.menu.items = [
+            {
+                "icon": "static/download.svg",
+                "menu": [
+                    {
+                        "label": "CSV",
+                        "type": "custom",
+                        "options": {
+                            "callback": function() {
+                                window.open("{{ $downloadURL }}", "_blank");
+                            }
+                        }
+                    },
+                    {
+                        "label": "Image",
+                        "menu": [
+                            { "type": "png", "label": "PNG" },
+                            { "type": "jpg", "label": "JPG" },
+                            { "type": "svg", "label": "SVG" },
+                            { "type": "pdf", "label": "PDF" }
+                        ]
+                    },  {
+                        "label": "Print", "type": "print"
+                    }
+                ]
+            }
+        ];
 
         var dataSource = chart.dataSource;
         dataSource.parser = new am4core.JSONParser();

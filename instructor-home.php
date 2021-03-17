@@ -27,6 +27,7 @@ $config = [
     'scripts'    => [ $CFG->staticroot .'/js/moment.min.js'],
     'getInfoURL'        => addSession('actions/GetInfo.php'),
     'fetchWeekDataUrl'  => addSession('actions/GetWeek.php'),
+    'downloadURL'       => addSession('actions/GetCSV.php'),
     'tool' => $tool
 ];
 
