@@ -88,9 +88,13 @@ section h3 {
     color: #000;
 }
 
+ul.amcharts-amexport-menu {
+    display: flex;
+}
+
 li.amcharts-amexport-item.amcharts-amexport-item-level-0 {
     width: 120px;
-    padding: 0.4em 0em 0.4em 0.4em;
+    padding: 0.4em;
 }
 
 li.amcharts-amexport-item.amcharts-amexport-item-level-0 > img { 

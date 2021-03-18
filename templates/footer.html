@@ -169,7 +169,7 @@
 
         // Title
         var title = chart.titles.push(new am4core.Label());
-        title.text = `Student Analytics:  ${site_title} [font-size: 16px](${no_students} students)[/]`;
+        title.text = `${site_title} [font-size: 16px](${no_students} students)[/]`;
         title.fontSize = 25;
         title.marginBottom = 15;
         title.align = "left";
@@ -188,6 +188,7 @@
         chart.exporting.menu.items = [
             {
                 "icon": "static/download.svg",
+                "title": "Download data in CSV format or graph image",
                 "menu": [
                     {
                         "label": "CSV",
@@ -208,6 +209,16 @@
                         ]
                     }
                 ]
+            },
+            {
+                "icon": "static/about.svg",
+                "title": "About Course Analytics (including category definitions)",
+                "type": "custom",
+                "options": {
+                    "callback": function() {
+                        window.open(" http://bit.ly/vula-analytics", "_blank");
+                    }
+                }
             }
         ];
 
